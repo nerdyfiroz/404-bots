@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404BOT — Trait Studio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--page:#101014;--card:#18181e;--card2:#202028;--ink:#f4f4f5;--muted:#8c8c9b;--accent:#ff6b35;--line:#30303a}
+body{font-family:"Space Grotesk",system-ui,sans-serif;background:var(--page);color:var(--ink);padding:28px}
+h1{font-size:32px;margin-bottom:6px}.sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+.palette-row,.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
+.palette-btn,.tool-btn,.trait-btn,.small-btn{font:inherit;border:1px solid var(--line);background:#15151a;color:#aaa;border-radius:10px;padding:9px 14px;cursor:pointer;font-size:12px;font-weight:700}
+.palette-btn.active,.trait-btn.active{border-color:var(--accent);color:#fff;box-shadow:0 0 0 1px var(--accent) inset}
+.tool-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.layout{display:grid;grid-template-columns:minmax(330px,480px) 1fr;gap:28px;align-items:start}
+.preview-panel{position:sticky;top:18px}.preview{aspect-ratio:1;background:#09090c;border:2px solid #292932;border-radius:18px;overflow:hidden}
+canvas{display:block;width:100%;height:100%}.status{font-size:12px;color:var(--muted);min-height:20px;margin-top:12px}
+.progress{height:4px;background:#24242d;border-radius:99px;overflow:hidden;margin-top:10px}.fill{height:100%;width:0;background:var(--accent);transition:.2s}
+.traits{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.trait-card{background:var(--card);border:1px solid #292932;border-radius:16px;padding:16px}
+.trait-card h2{font-size:14px;margin-bottom:5px}.trait-card p{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:12px}
+.trait-options{display:flex;flex-wrap:wrap;gap:7px}.trait-btn{padding:7px 10px;font-size:11px}
+.layer-section{margin-top:26px}.layer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.layer-card{background:var(--card);border:1px solid #292932;border-radius:13px;overflow:hidden}.thumb{aspect-ratio:1;background:repeating-conic-gradient(#1c1c23 0 25%,#24242c 0 50%) 0/20px 20px}.thumb canvas{width:100%;height:100%}
+.layer-info{padding:10px}.layer-name{font-size:12px;font-weight:700}.layer-desc{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+.layer-actions{display:flex;gap:6px;margin-top:9px}.small-btn{padding:6px 8px;flex:1}
+@media(max-width:900px){body{padding:18px}.layout{grid-template-columns:1fr}.preview-panel{position:relative;top:auto}}
+</style>
+</head>
+<body>
+<h1>404BOT Trait Studio</h1>
+<p class="sub">Trait-based NFT character generator · 16 palettes · 5+ variants per major category · transparent PNG export</p>
+
+<div class="palette-row" id="paletteRow"></div>
+
+<div class="toolbar">
+<button class="tool-btn primary" id="randomBtn">🎲 Randomize BOT</button>
+<button class="tool-btn" id="exportCompositeBtn">⬇ Export Composite PNG</button>
+<button class="tool-btn" id="exportTraitsBtn">⬇ Export Active Traits</button>
+<button class="tool-btn primary" id="exportZipBtn">📦 Export ALL Layers ZIP</button>
+<button class="tool-btn" id="resetBtn">↺ Reset Default</button>
+</div>
+
+<div class="layout">
+  <div class="preview-panel">
+    <div class="preview"><canvas id="mainCanvas" width="800" height="800"></canvas></div>
+    <div class="progress"><div class="fill" id="fill"></div></div>
+    <div class="status" id="status">Ready. Choose traits or randomize your 404BOT.</div>
+  </div>
+  <div>
+    <div class="traits" id="traits"></div>
+    <div class="layer-section">
+      <h2 style="font-size:15px;margin-bottom:5px">Active Export Layers</h2>
+      <p style="font-size:11px;color:#8c8c9b;margin-bottom:12px">Each thumbnail exports the currently selected trait as a transparent PNG.</p>
+      <div class="layer-grid" id="layerGrid"></div>
+    </div>
+  </div>
+</div>
+
+<canvas id="offscreen" width="800" height="800" style="display:none"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const PALETTES=[
+{id:"yellow-genesis",name:"Yellow Genesis",visor:"#F4C430",visorGrad:"#E8A000",visorHL:"#FFE87A",earInner:"#F4C430",collar:"#7AB648",collarDk:"#5A8F2A",armor:"#FFF8E0",armorShade:"#EEE0B0",armorDk:"#D4C080",bg:"#C49A6C",bgGrad:"#B08050",cable:"#C8A020",shadowV:"#A07000",accent:"#F4C430"},
+{id:"cyber-green",name:"Cyber Green",visor:"#00D26A",visorGrad:"#00A050",visorHL:"#80FFB4",earInner:"#00D26A",collar:"#2255CC",collarDk:"#1133AA",armor:"#FFFFFF",armorShade:"#DDE8E0",armorDk:"#B8CCBA",bg:"#7A7058",bgGrad:"#5A5040",cable:"#00A050",shadowV:"#006630",accent:"#00D26A"},
+{id:"purple-void",name:"Purple Void",visor:"#9B59D0",visorGrad:"#7030A0",visorHL:"#D4A0FF",earInner:"#9B59D0",collar:"#D63080",collarDk:"#A01060",armor:"#E8E0F0",armorShade:"#CCC0DC",armorDk:"#A898C4",bg:"#2A2A32",bgGrad:"#1A1A22",cable:"#8040C0",shadowV:"#40106A",accent:"#9B59D0"},
+{id:"cyan-network",name:"Cyan Network",visor:"#00C8F0",visorGrad:"#0098C8",visorHL:"#80EEFF",earInner:"#00C8F0",collar:"#30A890",collarDk:"#108870",armor:"#F0F8F8",armorShade:"#CDE0DF",armorDk:"#A8C8C6",bg:"#8A9090",bgGrad:"#6A7070",cable:"#00A8D0",shadowV:"#005880",accent:"#00C8F0"},
+{id:"lava-core",name:"Lava Core",visor:"#FF2D2D",visorGrad:"#C00000",visorHL:"#FF9090",earInner:"#FF2D2D",collar:"#FF6000",collarDk:"#C04000",armor:"#F2EDED",armorShade:"#D8C8C8",armorDk:"#B8A0A0",bg:"#2C1010",bgGrad:"#1A0808",cable:"#FF4400",shadowV:"#800000",accent:"#FF2D2D"},
+{id:"arctic-storm",name:"Arctic Storm",visor:"#B8E8FF",visorGrad:"#70C0FF",visorHL:"#EEFAFF",earInner:"#B8E8FF",collar:"#0044DD",collarDk:"#002AAA",armor:"#F4F8FF",armorShade:"#D8E4F4",armorDk:"#B0C4E0",bg:"#0A0F1E",bgGrad:"#050A14",cable:"#60AAFF",shadowV:"#003080",accent:"#70C0FF"},
+{id:"sakura-bot",name:"Sakura Bot",visor:"#FF80B0",visorGrad:"#E04080",visorHL:"#FFD0E4",earInner:"#FF80B0",collar:"#C04878",collarDk:"#902050",armor:"#FFF0F5",armorShade:"#F0D0DC",armorDk:"#D8A8B8",bg:"#C48898",bgGrad:"#A06878",cable:"#FF5090",shadowV:"#801040",accent:"#FF80B0"},
+{id:"toxic-waste",name:"Toxic Waste",visor:"#AAFF00",visorGrad:"#78CC00",visorHL:"#DDFF88",earInner:"#AAFF00",collar:"#223300",collarDk:"#111800",armor:"#E8EEE0",armorShade:"#C8D4B0",armorDk:"#A0B080",bg:"#1A2200",bgGrad:"#0E1600",cable:"#88CC00",shadowV:"#446600",accent:"#AAFF00"},
+{id:"solar-flare",name:"Solar Flare",visor:"#FF7700",visorGrad:"#CC4400",visorHL:"#FFCC80",earInner:"#FF7700",collar:"#112266",collarDk:"#080E44",armor:"#FFFAF0",armorShade:"#EEE0C0",armorDk:"#D4C090",bg:"#D4A040",bgGrad:"#A87020",cable:"#FF9900",shadowV:"#882200",accent:"#FF7700"},
+{id:"ghost-protocol",name:"Ghost Protocol",visor:"#E0E0E0",visorGrad:"#A0A0A0",visorHL:"#FFFFFF",earInner:"#D0D0D0",collar:"#404040",collarDk:"#222222",armor:"#FFFFFF",armorShade:"#E8E8E8",armorDk:"#C8C8C8",bg:"#686868",bgGrad:"#484848",cable:"#B0B0B0",shadowV:"#303030",accent:"#CCCCCC"},
+{id:"deep-ocean",name:"Deep Ocean",visor:"#00B8A0",visorGrad:"#007868",visorHL:"#80EEE0",earInner:"#00B8A0",collar:"#FF6655",collarDk:"#CC3322",armor:"#F0FAFA",armorShade:"#C8E8E4",armorDk:"#98C8C4",bg:"#0A2030",bgGrad:"#051018",cable:"#00D8B8",shadowV:"#004438",accent:"#00B8A0"},
+{id:"neon-punk",name:"Neon Punk",visor:"#FF00CC",visorGrad:"#CC0099",visorHL:"#FF88EE",earInner:"#FF00CC",collar:"#CCFF00",collarDk:"#88CC00",armor:"#1E1E28",armorShade:"#2A2A38",armorDk:"#141420",bg:"#0E0E16",bgGrad:"#06060C",cable:"#FF44CC",shadowV:"#880066",accent:"#FF00CC"},
+{id:"rust-belt",name:"Rust Belt",visor:"#CC5522",visorGrad:"#993311",visorHL:"#FFAA80",earInner:"#CC5522",collar:"#8A7040",collarDk:"#605020",armor:"#F4EEE0",armorShade:"#DDD0B0",armorDk:"#BBAA80",bg:"#7A4828",bgGrad:"#5A3018",cable:"#DD7744",shadowV:"#662200",accent:"#CC5522"},
+{id:"mint-chip",name:"Mint Chip",visor:"#44DDAA",visorGrad:"#22AA78",visorHL:"#AAFFD8",earInner:"#44DDAA",collar:"#5C3A1E",collarDk:"#3A2010",armor:"#F5FFF8",armorShade:"#D0EDD8",armorDk:"#A8D4B4",bg:"#7AA888",bgGrad:"#5A8868",cable:"#22CC88",shadowV:"#116644",accent:"#44DDAA"},
+{id:"void-king",name:"Void King",visor:"#220044",visorGrad:"#110022",visorHL:"#8844AA",earInner:"#330055",collar:"#CCA000",collarDk:"#997000",armor:"#1A1A22",armorShade:"#242430",armorDk:"#0E0E16",bg:"#080808",bgGrad:"#030303",cable:"#AA8800",shadowV:"#000000",accent:"#CCA000"},
+{id:"candy-wave",name:"Candy Wave",visor:"#FF8877",visorGrad:"#EE5544",visorHL:"#FFCCCC",earInner:"#FF8877",collar:"#AA88DD",collarDk:"#7755BB",armor:"#FFF0EE",armorShade:"#F4D8D4",armorDk:"#E0B8B4",bg:"#F0B8C4",bgGrad:"#D898A8",cable:"#FF7766",shadowV:"#CC3322",accent:"#FF8877"}
+];
+
+const CATS=[
+{key:"background",title:"Background",desc:"Radial color backdrop",options:["gradient","grid","rings","stars","dots","void"]},
+{key:"head",title:"Head Shape",desc:"Choose the main character silhouette",options:["round","square","capsule","triangle","alien","tv"]},
+{key:"eyes",title:"Eyes / Face",desc:"Interchangeable expressions and digital traits",options:["404","happy","angry","sleepy","x","heart","cyclops","spiral"]},
+{key:"ears",title:"Ears / Attachments",desc:"Side modules and silhouette traits",options:["classic","cat","antenna","horn","headphones","rabbit"]},
+{key:"body",title:"Body Shape",desc:"Six different body archetypes",options:["classic","tiny","hover","ufo","spider","spring"]},
+{key:"hands",title:"Hands / Arms",desc:"Six expressive arm and hand traits",options:["claws","fists","peace","wave","thumbs","tentacles"]},
+{key:"accessory",title:"Accessory",desc:"Optional collectible extras",options:["none","crown","halo","visor-cap","wings","glitch","error-404","error-500","wifi-off","no-signal","loading","broken-link","cloud-error","bug","warning","server-down","timeout","offline","captcha","connection-lost"]}
+];
+
+let activePalette=0;
+let state={background:"gradient",head:"round",eyes:"404",ears:"classic",body:"classic",hands:"claws",accessory:"none"};
+
+const ink="#0e0e0e";
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath()}
+function stroke(c,w=6){c.strokeStyle=ink;c.lineWidth=w;c.lineJoin="round";c.lineCap="round";c.stroke()}
+function armorGrad(c,p,x1,y1,x2,y2){const g=c.createLinearGradient(x1,y1,x2,y2);g.addColorStop(0,p.armor);g.addColorStop(.55,p.armorShade);g.addColorStop(1,p.armorDk);return g}
+function accentGrad(c,p,x1,y1,x2,y2){const g=c.createLinearGradient(x1,y1,x2,y2);g.addColorStop(0,p.visorHL);g.addColorStop(.35,p.visor);g.addColorStop(1,p.visorGrad);return g}
+function circle(c,x,y,r,fill,sw=5){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fillStyle=fill;c.fill();stroke(c,sw)}
+
+function drawBackground(c,p,type){
+ c.clearRect(0,0,800,800);
+ if(type==="gradient"){let g=c.createRadialGradient(400,300,60,400,400,650);g.addColorStop(0,p.bg);g.addColorStop(1,p.bgGrad);c.fillStyle=g;c.fillRect(0,0,800,800)}
+ if(type==="grid"){c.fillStyle=p.bgGrad;c.fillRect(0,0,800,800);c.strokeStyle=p.bg+"66";c.lineWidth=2;for(let i=-800;i<1600;i+=55){c.beginPath();c.moveTo(i,0);c.lineTo(i+800,800);c.stroke();c.beginPath();c.moveTo(i+800,0);c.lineTo(i,800);c.stroke()}}
+ if(type==="rings"){c.fillStyle=p.bgGrad;c.fillRect(0,0,800,800);for(let r=650;r>30;r-=55){c.beginPath();c.arc(400,360,r,0,Math.PI*2);c.strokeStyle=p.bg;c.lineWidth=18;c.stroke()}}
+ if(type==="stars"){c.fillStyle=p.bgGrad;c.fillRect(0,0,800,800);for(let i=0;i<70;i++){let x=(i*97)%800,y=(i*173)%800;c.fillStyle=i%3?p.bg:p.visor;c.beginPath();c.arc(x,y,(i%4)+1,0,Math.PI*2);c.fill()}}
+ if(type==="dots"){c.fillStyle=p.bgGrad;c.fillRect(0,0,800,800);for(let x=25;x<800;x+=45)for(let y=25;y<800;y+=45){c.beginPath();c.arc(x,y,4,0,Math.PI*2);c.fillStyle=p.bg;c.fill()}}
+ if(type==="void"){c.fillStyle="#07070a";c.fillRect(0,0,800,800);let g=c.createRadialGradient(400,350,10,400,350,420);g.addColorStop(0,p.visor+"44");g.addColorStop(1,p.visor+"00");c.fillStyle=g;c.fillRect(0,0,800,800)}
+}
+
+function drawBody(c,p,t){
+ const bodyFill=armorGrad(c,p,180,430,620,720);
+ if(t==="classic"){rr(c,220,470,360,250,42);c.fillStyle=bodyFill;c.fill();stroke(c);rr(c,260,505,280,165,24);c.fillStyle=armorGrad(c,p,260,505,540,670);c.fill();stroke(c,4);drawChest(c,p,400,565)}
+ if(t==="tiny"){rr(c,300,510,200,150,35);c.fillStyle=bodyFill;c.fill();stroke(c);drawChest(c,p,400,565)}
+ if(t==="hover"){rr(c,255,500,290,135,65);c.fillStyle=bodyFill;c.fill();stroke(c);circle(c,400,660,58,p.armorDk);circle(c,400,660,34,p.visor,4);for(let x of [310,490])circle(c,x,635,10,p.collar,3)}
+ if(t==="ufo"){c.beginPath();c.ellipse(400,575,210,82,0,0,Math.PI*2);c.fillStyle=bodyFill;c.fill();stroke(c);c.beginPath();c.ellipse(400,550,110,65,0,Math.PI,Math.PI*2);c.fillStyle=p.visor+"88";c.fill();stroke(c);for(let x of [250,330,470,550])circle(c,x,605,9,p.visor,3)}
+ if(t==="spider"){rr(c,275,500,250,145,40);c.fillStyle=bodyFill;c.fill();stroke(c);drawChest(c,p,400,560);c.strokeStyle=ink;c.lineWidth=16;for(let i=0;i<4;i++){let y=535+i*28;c.beginPath();c.moveTo(290,y);c.lineTo(205,y+55);c.lineTo(160,y+55);c.stroke();c.beginPath();c.moveTo(510,y);c.lineTo(595,y+55);c.lineTo(640,y+55);c.stroke()}}
+ if(t==="spring"){rr(c,310,500,180,110,30);c.fillStyle=bodyFill;c.fill();stroke(c);drawChest(c,p,400,550);c.strokeStyle=ink;c.lineWidth=12;for(let y=625;y<750;y+=24){c.beginPath();c.moveTo(330,y);c.quadraticCurveTo(400,y+20,470,y);c.stroke()}}
+}
+function drawChest(c,p,x,y){rr(c,x-92,y-45,184,90,18);c.fillStyle=p.armorShade;c.fill();stroke(c,4);c.font="bold 20px Space Grotesk";c.textAlign="center";c.textBaseline="middle";c.fillStyle=ink;c.fillText("404BOT",x,y-12);circle(c,x,y+20,18,p.collar,3);circle(c,x,y+20,7,p.armorDk,2)}
+
+function drawHands(c,p,t){
+ const arm=(side)=>{let sx=side===-1?190:610,ex=side===-1?125:675;c.strokeStyle=ink;c.lineWidth=50;c.beginPath();c.moveTo(sx,520);c.lineTo(ex,620);c.stroke();c.strokeStyle=p.armor;c.lineWidth=38;c.stroke();return [ex,620]};
+ let L=arm(-1),R=arm(1);
+ const hand=(x,y,kind,side)=>{
+   c.save();c.translate(x,y);c.scale(side,1);
+   if(kind==="claws"){for(let o of [-16,0,16]){c.beginPath();c.moveTo(o-7,0);c.lineTo(o,-38);c.lineTo(o+7,0);c.closePath();c.fillStyle=p.armorShade;c.fill();stroke(c,3)}circle(c,0,10,24,p.armor,4)}
+   if(kind==="fists"){circle(c,0,0,36,p.armor,5);for(let x of [-15,0,15]){c.beginPath();c.moveTo(x,-12);c.lineTo(x,12);c.strokeStyle=ink;c.lineWidth=4;c.stroke()}}
+   if(kind==="peace"){circle(c,0,15,27,p.armor,5);c.strokeStyle=p.armor;c.lineWidth=18;c.beginPath();c.moveTo(-8,2);c.lineTo(-24,-48);c.moveTo(8,2);c.lineTo(24,-48);c.stroke();c.strokeStyle=ink;c.lineWidth=5;c.stroke()}
+   if(kind==="wave"){circle(c,0,12,27,p.armor,5);for(let x of [-22,-11,0,11,22]){c.strokeStyle=p.armor;c.lineWidth=12;c.beginPath();c.moveTo(x,0);c.lineTo(x,-45-(Math.abs(x)%3)*8);c.stroke();c.strokeStyle=ink;c.lineWidth=3;c.stroke()}}
+   if(kind==="thumbs"){circle(c,0,12,28,p.armor,5);c.strokeStyle=p.armor;c.lineWidth=19;c.beginPath();c.moveTo(-10,4);c.lineTo(-10,-45);c.stroke();c.strokeStyle=ink;c.lineWidth=5;c.stroke()}
+   if(kind==="tentacles"){for(let o of [-12,12]){c.strokeStyle=ink;c.lineWidth=18;c.beginPath();c.moveTo(o,0);c.quadraticCurveTo(o+25,-30,o,-65);c.stroke();c.strokeStyle=p.armor;c.lineWidth=11;c.stroke()}}
+   c.restore()
+ };
+ hand(L[0],L[1],t,-1);hand(R[0],R[1],t,1);
+}
+
+function drawHead(c,p,t){
+ c.save();
+ if(t==="round"){c.beginPath();c.ellipse(400,295,190,190,0,0,Math.PI*2)}
+ if(t==="square"){rr(c,215,110,370,370,75)}
+ if(t==="capsule"){rr(c,245,85,310,415,155)}
+ if(t==="triangle"){c.beginPath();c.moveTo(400,75);c.lineTo(605,460);c.quadraticCurveTo(400,520,195,460);c.closePath()}
+ if(t==="alien"){c.beginPath();c.moveTo(400,80);c.bezierCurveTo(600,100,650,260,560,420);c.bezierCurveTo(480,500,320,500,240,420);c.bezierCurveTo(150,260,200,100,400,80);c.closePath()}
+ if(t==="tv"){rr(c,180,125,440,330,55)}
+ c.fillStyle=armorGrad(c,p,220,100,580,490);c.fill();stroke(c,7);c.restore()
+}
+
+function drawEars(c,p,t){
+ const module=(x,y)=>circle(c,x,y,58,p.armor,6);
+ if(t==="classic"){module(205,230);module(595,230);circle(c,205,230,31,p.visor,4);circle(c,595,230,31,p.visor,4)}
+ if(t==="cat"){for(let s of [-1,1]){c.beginPath();c.moveTo(400+s*110,155);c.lineTo(400+s*155,65);c.lineTo(400+s*45,125);c.closePath();c.fillStyle=p.armor;c.fill();stroke(c,6);circle(c,400+s*120,130,12,p.visor,3)}}
+ if(t==="antenna"){for(let s of [-1,1]){module(400+s*180,230);c.strokeStyle=ink;c.lineWidth=12;c.beginPath();c.moveTo(400+s*180,180);c.lineTo(400+s*215,65);c.stroke();circle(c,400+s*215,60,18,p.visor,4)}}
+ if(t==="horn"){for(let s of [-1,1]){c.beginPath();c.moveTo(400+s*105,150);c.lineTo(400+s*165,40);c.lineTo(400+s*185,170);c.closePath();c.fillStyle=p.collar;c.fill();stroke(c,6)}}
+ if(t==="headphones"){c.strokeStyle=ink;c.lineWidth=36;c.beginPath();c.arc(400,270,220,Math.PI,0);c.stroke();c.strokeStyle=p.armor;c.lineWidth=24;c.stroke();for(let x of [190,610]){rr(c,x-35,220,70,130,28);c.fillStyle=p.armor;c.fill();stroke(c,5);circle(c,x,285,22,p.visor,3)}}
+ if(t==="rabbit"){for(let s of [-1,1]){c.save();c.translate(400+s*105,120);c.rotate(s*.18);rr(c,-35,-145,70,190,35);c.fillStyle=p.armor;c.fill();stroke(c,6);rr(c,-17,-125,34,140,17);c.fillStyle=p.visor;c.fill();stroke(c,3);c.restore()}}
+}
+
+function drawEyes(c,p,t){
+ if(t==="404"){rr(c,250,225,300,125,60);c.fillStyle=accentGrad(c,p,250,225,550,350);c.fill();stroke(c,6);c.font="bold 72px Space Grotesk";c.textAlign="center";c.textBaseline="middle";c.fillStyle="white";c.fillText("404",400,292)}
+ if(t==="happy"){for(let x of [335,465]){c.beginPath();c.arc(x,280,38,0,Math.PI);c.strokeStyle=ink;c.lineWidth=12;c.stroke()}}
+ if(t==="angry"){for(let x of [330,470]){c.strokeStyle=ink;c.lineWidth=13;c.beginPath();c.moveTo(x-42,255);c.lineTo(x+32,290);c.stroke();circle(c,x,300,22,p.visor,4)}}
+ if(t==="sleepy"){for(let x of [330,470]){c.beginPath();c.ellipse(x,285,50,22,0,0,Math.PI*2);c.fillStyle=p.visor;c.fill();stroke(c,5);c.fillStyle=p.armor;c.fillRect(x-55,245,110,30)}}
+ if(t==="x"){for(let x of [330,470]){c.strokeStyle=p.visor;c.lineWidth=22;c.beginPath();c.moveTo(x-35,250);c.lineTo(x+35,320);c.moveTo(x+35,250);c.lineTo(x-35,320);c.stroke();c.strokeStyle=ink;c.lineWidth=6;c.stroke()}}
+ if(t==="heart"){for(let x of [330,470])heart(c,x,285,42,p.visor)}
+ if(t==="cyclops"){circle(c,400,285,82,p.visor,7);circle(c,400,285,32,ink,4);circle(c,388,270,10,"white",0)}
+ if(t==="spiral"){for(let x of [330,470]){c.strokeStyle=p.visor;c.lineWidth=10;c.beginPath();for(let a=0;a<Math.PI*5;a+=.12){let r=3+a*3,xp=x+Math.cos(a)*r,yp=285+Math.sin(a)*r;if(a===0)c.moveTo(xp,yp);else c.lineTo(xp,yp)}c.stroke();stroke(c,2)}}
+}
+function heart(c,x,y,s,fill){c.save();c.translate(x,y);c.beginPath();c.moveTo(0,s*.75);c.bezierCurveTo(-s*1.5,-s*.1,-s*.65,-s*1.25,0,-s*.55);c.bezierCurveTo(s*.65,-s*1.25,s*1.5,-s*.1,0,s*.75);c.closePath();c.fillStyle=fill;c.fill();stroke(c,4);c.restore()}
+
+function drawAccessory(c,p,t){
+ if(t==="crown"){c.beginPath();c.moveTo(315,110);c.lineTo(340,45);c.lineTo(400,95);c.lineTo(460,45);c.lineTo(485,110);c.closePath();c.fillStyle=p.collar;c.fill();stroke(c,6)}
+ if(t==="halo"){c.beginPath();c.ellipse(400,70,105,30,0,0,Math.PI*2);c.strokeStyle=p.visor;c.lineWidth=14;c.stroke();c.strokeStyle=ink;c.lineWidth=4;c.stroke()}
+ if(t==="visor-cap"){rr(c,250,105,300,65,28);c.fillStyle=p.collar;c.fill();stroke(c,6);c.beginPath();c.ellipse(400,165,185,32,0,0,Math.PI*2);c.fillStyle=p.collarDk;c.fill();stroke(c,5)}
+ if(t==="wings"){for(let s of [-1,1])for(let i=0;i<3;i++){c.beginPath();c.ellipse(400+s*(220+i*32),330-i*35,70,28,s*.5,0,Math.PI*2);c.fillStyle=p.armor;c.fill();stroke(c,4)}}
+ if(t==="glitch"){for(let i=0;i<9;i++){let y=130+i*55;c.fillStyle=i%2?p.visor:p.collar;c.fillRect(i%2?160:550,y,i%2?55:-55,10)}}
+
+ // INTERNET / DIGITAL ERROR ACCESSORIES
+ if(t==="error-404") errorBadge(c,p,"404",400,90,80);
+ if(t==="error-500") errorBadge(c,p,"500",400,90,80);
+ if(t==="timeout") errorBadge(c,p,"TIMEOUT",400,90,48);
+ if(t==="offline") errorBadge(c,p,"OFFLINE",400,90,50);
+ if(t==="connection-lost") errorBadge(c,p,"LOST",400,90,62);
+
+ if(t==="wifi-off"){
+   for(let r=1;r<=3;r++){c.beginPath();c.arc(400,95,r*38,Math.PI*1.15,Math.PI*1.85);c.strokeStyle=p.visor;c.lineWidth=12;c.stroke();c.strokeStyle=ink;c.lineWidth=3;c.stroke()}
+   c.strokeStyle=p.collar;c.lineWidth=15;c.beginPath();c.moveTo(315,25);c.lineTo(485,165);c.stroke();stroke(c,4);
+ }
+ if(t==="no-signal"){
+   for(let i=0;i<4;i++){let h=25+i*28;rr(c,335+i*38,145-h,24,h,5);c.fillStyle=i<2?p.armorDk:p.visor;c.fill();stroke(c,3)}
+   c.strokeStyle=p.collar;c.lineWidth=14;c.beginPath();c.moveTo(325,45);c.lineTo(490,155);c.stroke();stroke(c,4);
+ }
+ if(t==="loading"){
+   for(let i=0;i<12;i++){let a=i*Math.PI/6,x=400+Math.cos(a)*82,y=95+Math.sin(a)*82;c.beginPath();c.arc(x,y,9,0,Math.PI*2);c.fillStyle=i<7?p.visor:p.armorDk;c.fill();stroke(c,2)}
+ }
+ if(t==="broken-link"){
+   c.save();c.translate(400,90);c.rotate(-.35);rr(c,-105,-32,95,64,28);c.fillStyle=p.armor;c.fill();stroke(c,5);rr(c,10,-32,95,64,28);c.fillStyle=p.armor;c.fill();stroke(c,5);c.strokeStyle=p.collar;c.lineWidth=14;c.beginPath();c.moveTo(-12,-55);c.lineTo(12,55);c.stroke();stroke(c,3);c.restore()
+ }
+ if(t==="cloud-error"){
+   c.beginPath();c.arc(350,110,35,Math.PI*.7,Math.PI*2);c.arc(400,85,48,Math.PI,Math.PI*2);c.arc(455,112,34,Math.PI*1.25,Math.PI*2);c.lineTo(485,145);c.lineTo(315,145);c.closePath();c.fillStyle=p.armor;c.fill();stroke(c,5);c.font="bold 34px Space Grotesk";c.textAlign="center";c.textBaseline="middle";c.fillStyle=p.collar;c.fillText("!",400,112)
+ }
+ if(t==="bug"){
+   circle(c,400,90,34,p.collar,5);for(let s of [-1,1])for(let i=0;i<3;i++){c.strokeStyle=ink;c.lineWidth=7;c.beginPath();c.moveTo(400+s*25,75+i*14);c.lineTo(400+s*62,55+i*28);c.stroke()}circle(c,400,90,8,p.visor,2)
+ }
+ if(t==="warning"){
+   c.beginPath();c.moveTo(400,20);c.lineTo(485,165);c.lineTo(315,165);c.closePath();c.fillStyle="#FFD54A";c.fill();stroke(c,6);c.font="bold 80px Space Grotesk";c.textAlign="center";c.textBaseline="middle";c.fillStyle=ink;c.fillText("!",400,115)
+ }
+ if(t==="server-down"){
+   for(let y of [45,105]){rr(c,330,y,140,52,10);c.fillStyle=p.armor;c.fill();stroke(c,4);circle(c,355,y+26,7,p.collar,2);for(let x=385;x<445;x+=18)circle(c,x,y+26,4,p.visor,1)}
+   c.strokeStyle=p.collar;c.lineWidth=13;c.beginPath();c.moveTo(305,25);c.lineTo(495,175);c.stroke();stroke(c,4)
+ }
+ if(t==="captcha"){
+   rr(c,320,35,160,115,14);c.fillStyle=p.armor;c.fill();stroke(c,5);rr(c,340,60,35,35,6);c.fillStyle=p.visor;c.fill();stroke(c,3);c.font="bold 17px Space Grotesk";c.textAlign="left";c.textBaseline="middle";c.fillStyle=ink;c.fillText("I'm not a bot",388,78);c.font="bold 25px Space Grotesk";c.textAlign="center";c.fillStyle=p.collar;c.fillText("✓",357,132)
+ }
+}
+function errorBadge(c,p,label,x,y,w){
+ rr(c,x-w,y-32,w*2,64,18);c.fillStyle=p.collar;c.fill();stroke(c,5);
+ c.font=`bold ${label.length>4?22:34}px Space Grotesk`;c.textAlign="center";c.textBaseline="middle";c.fillStyle="white";c.fillText(label,x,y+1);
+}
+function drawBot(canvas){
+ const c=canvas.getContext("2d"),p=PALETTES[activePalette];
+ drawBackground(c,p,state.background);
+ drawBody(c,p,state.body);
+ drawHands(c,p,state.hands);
+ drawEars(c,p,state.ears);
+ drawHead(c,p,state.head);
+ drawEyes(c,p,state.eyes);
+ drawAccessory(c,p,state.accessory);
+ c.font="600 12px Space Grotesk";c.textAlign="center";c.fillStyle="rgba(255,255,255,.32)";c.fillText("404BOT · "+p.name.toUpperCase(),400,775);
+}
+
+function renderUI(){
+ const pr=document.getElementById("paletteRow");pr.innerHTML="";
+ PALETTES.forEach((p,i)=>{let b=document.createElement("button");b.className="palette-btn"+(i===activePalette?" active":"");b.textContent=p.name;b.style.setProperty("--accent",p.accent);b.onclick=()=>{activePalette=i;renderUI();drawBot(document.getElementById("mainCanvas"))};pr.appendChild(b)});
+ const traits=document.getElementById("traits");traits.innerHTML="";
+ CATS.forEach(cat=>{let card=document.createElement("div");card.className="trait-card";card.innerHTML=`<h2>${cat.title}</h2><p>${cat.desc}</p>`;let opts=document.createElement("div");opts.className="trait-options";cat.options.forEach(o=>{let b=document.createElement("button");b.className="trait-btn"+(state[cat.key]===o?" active":"");b.textContent=o;b.onclick=()=>{state[cat.key]=o;renderUI();drawBot(document.getElementById("mainCanvas"))};opts.appendChild(b)});card.appendChild(opts);traits.appendChild(card)});
+ renderLayerCards();
+}
+
+function renderLayerCards(){
+ const grid=document.getElementById("layerGrid");grid.innerHTML="";
+ const layers=[
+ ["01-background","Background","Selected backdrop",()=>drawBackgroundLayer()],
+ ["02-body","Body","Selected body trait",()=>drawBodyLayer()],
+ ["03-hands","Hands","Selected arms / hands",()=>drawHandsLayer()],
+ ["04-ears","Ears","Selected side attachment",()=>drawEarsLayer()],
+ ["05-head","Head","Selected head silhouette",()=>drawHeadLayer()],
+ ["06-eyes","Eyes","Selected eye / face trait",()=>drawEyesLayer()],
+ ["07-accessory","Accessory","Selected collectible extra",()=>drawAccessoryLayer()]
+ ];
+ layers.forEach(([id,name,desc,fn])=>{let card=document.createElement("div");card.className="layer-card";let thumb=document.createElement("div");thumb.className="thumb";let cv=document.createElement("canvas");cv.width=cv.height=400;thumb.appendChild(cv);let tc=cv.getContext("2d");tc.scale(.5,.5);renderLayerByName(tc,id);let info=document.createElement("div");info.className="layer-info";info.innerHTML=`<div class="layer-name">${name}</div><div class="layer-desc">${desc}</div><div class="layer-actions"><button class="small-btn">↓ PNG</button></div>`;info.querySelector("button").onclick=()=>exportLayer(id);card.append(thumb,info);grid.appendChild(card)})
+}
+function renderLayerByName(c,id){const p=PALETTES[activePalette];c.clearRect(0,0,800,800);if(id.includes("background"))drawBackground(c,p,state.background);if(id.includes("body"))drawBody(c,p,state.body);if(id.includes("hands"))drawHands(c,p,state.hands);if(id.includes("ears"))drawEars(c,p,state.ears);if(id.includes("head"))drawHead(c,p,state.head);if(id.includes("eyes"))drawEyes(c,p,state.eyes);if(id.includes("accessory"))drawAccessory(c,p,state.accessory)}
+function drawBackgroundLayer(){}function drawBodyLayer(){}function drawHandsLayer(){}function drawEarsLayer(){}function drawHeadLayer(){}function drawEyesLayer(){}function drawAccessoryLayer(){}
+
+function downloadCanvas(canvas,name){canvas.toBlob(blob=>{let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),500)})}
+function exportLayer(id){let off=document.getElementById("offscreen");renderLayerByName(off.getContext("2d"),id);downloadCanvas(off,`404bot-${PALETTES[activePalette].id}-${id}-${state[id.split("-")[1]]||"trait"}.png`)}
+function exportComposite(){let off=document.getElementById("offscreen"),c=off.getContext("2d");c.clearRect(0,0,800,800);let p=PALETTES[activePalette];drawBackground(c,p,state.background);drawBody(c,p,state.body);drawHands(c,p,state.hands);drawEars(c,p,state.ears);drawHead(c,p,state.head);drawEyes(c,p,state.eyes);drawAccessory(c,p,state.accessory);downloadCanvas(off,`404bot-${p.id}-composite.png`)}
+async function exportTraits(){let ids=["01-background","02-body","03-hands","04-ears","05-head","06-eyes","07-accessory"];let fill=document.getElementById("fill"),status=document.getElementById("status");for(let i=0;i<ids.length;i++){status.textContent=`Exporting ${i+1}/${ids.length}…`;fill.style.width=((i+1)/ids.length*100)+"%";exportLayer(ids[i]);await new Promise(r=>setTimeout(r,250))}status.textContent="✓ Active traits exported.";setTimeout(()=>fill.style.width="0",1000)}
+function randomize(){CATS.forEach(cat=>{state[cat.key]=cat.options[Math.floor(Math.random()*cat.options.length)]});activePalette=Math.floor(Math.random()*PALETTES.length);renderUI();drawBot(document.getElementById("mainCanvas"));document.getElementById("status").textContent="🎲 New random 404BOT generated!"}
+function reset(){activePalette=0;state={background:"gradient",head:"round",eyes:"404",ears:"classic",body:"classic",hands:"claws",accessory:"none"};renderUI();drawBot(document.getElementById("mainCanvas"))}
+
+
+async function exportAllLayersZip(){
+ const status=document.getElementById("status"),fill=document.getElementById("fill");
+ if(typeof JSZip==="undefined"){status.textContent="ZIP library could not load. Check your internet connection and try again.";return}
+ const zip=new JSZip(), p=PALETTES[activePalette], off=document.getElementById("offscreen");
+ const categories=[
+  ["01-background","background",CATS.find(x=>x.key==="background").options],
+  ["02-body","body",CATS.find(x=>x.key==="body").options],
+  ["03-hands","hands",CATS.find(x=>x.key==="hands").options],
+  ["04-ears","ears",CATS.find(x=>x.key==="ears").options],
+  ["05-head","head",CATS.find(x=>x.key==="head").options],
+  ["06-eyes","eyes",CATS.find(x=>x.key==="eyes").options],
+  ["07-accessory","accessory",CATS.find(x=>x.key==="accessory").options]
+ ];
+ const original={...state};
+ let total=categories.reduce((n,a)=>n+a[2].length,0),done=0;
+ for(const [folder,key,options] of categories){
+   for(const option of options){
+     state[key]=option;
+     const ctx=off.getContext("2d");ctx.clearRect(0,0,800,800);
+     renderLayerByName(ctx,folder);
+     const blob=await new Promise(resolve=>off.toBlob(resolve,"image/png"));
+     zip.folder(folder).file(`${option}.png`,blob);
+     done++;fill.style.width=(done/total*100)+"%";
+     status.textContent=`Packaging ${done}/${total} layer variants…`;
+   }
+ }
+ state={...original};
+ drawBot(document.getElementById("mainCanvas"));renderUI();
+ status.textContent="Compressing ZIP…";
+ const content=await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}});
+ const url=URL.createObjectURL(content),a=document.createElement("a");
+ a.href=url;a.download=`404bot-${p.id}-all-traits.zip`;a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ fill.style.width="0";status.textContent="✓ All trait variants exported in one compressed ZIP file.";
+}
+
+document.getElementById("randomBtn").onclick=randomize;
+document.getElementById("resetBtn").onclick=reset;
+document.getElementById("exportCompositeBtn").onclick=exportComposite;
+document.getElementById("exportTraitsBtn").onclick=exportTraits;
+document.getElementById("exportZipBtn").onclick=exportAllLayersZip;
+renderUI();drawBot(document.getElementById("mainCanvas"));
+</script>
+</body>
+</html>
