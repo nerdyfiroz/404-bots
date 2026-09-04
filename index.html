@@ -38,8 +38,9 @@ canvas{display:block;width:100%;height:100%}.status{font-size:12px;color:var(--m
 <div class="toolbar">
 <button class="tool-btn primary" id="randomBtn">🎲 Randomize BOT</button>
 <button class="tool-btn" id="exportCompositeBtn">⬇ Export Composite PNG</button>
-<button class="tool-btn" id="exportTraitsBtn">⬇ Export Active Traits</button>
-<button class="tool-btn primary" id="exportZipBtn">📦 Export ALL Layers ZIP</button>
+<button class="tool-btn" id="exportTraitsBtn">⬇ Export Active Traits (7 PNGs)</button>
+<button class="tool-btn" id="exportActiveZipBtn">📦 Export Active Palette ZIP</button>
+<button class="tool-btn primary" id="exportZipBtn">🌈 Export ALL 16 Palettes ZIP</button>
 <button class="tool-btn" id="resetBtn">↺ Reset Default</button>
 </div>
 
@@ -399,9 +400,9 @@ function reset(){
   drawBot(document.getElementById("mainCanvas"));
 }
 
-async function exportAllLayersZip(){
+async function exportCurrentPaletteZip(){
  const status=document.getElementById("status"),fill=document.getElementById("fill");
- if(typeof JSZip==="undefined"){status.textContent="ZIP library could not load. Check your internet connection and try again.";return}
+ if(typeof JSZip==="undefined"){status.textContent="ZIP library could not load. Check your internet connection.";return}
  const zip=new JSZip(), p=PALETTES[activePalette], off=document.getElementById("offscreen");
  const categories=[
   ["01-background","background",CATS.find(x=>x.key==="background").options],
@@ -422,7 +423,8 @@ async function exportAllLayersZip(){
      const blob=await new Promise(resolve=>off.toBlob(resolve,"image/png"));
      zip.folder(folder).file(`${option}.png`,blob);
      done++;fill.style.width=(done/total*100)+"%";
-     status.textContent=`Packaging ${done}/${total} layer variants…`;
+     status.textContent=`[${p.name}] Packaging ${done}/${total} layer variants…`;
+     if(done%4===0) await new Promise(r=>setTimeout(r,0));
    }
  }
  state={...original};
@@ -430,9 +432,63 @@ async function exportAllLayersZip(){
  status.textContent="Compressing ZIP…";
  const content=await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}});
  const url=URL.createObjectURL(content),a=document.createElement("a");
- a.href=url;a.download=`404bot-${p.id}-all-traits.zip`;a.click();
+ a.href=url;a.download=`404bot-${p.id}-traits.zip`;a.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
- fill.style.width="0";status.textContent="✓ All trait variants exported in one compressed ZIP file.";
+ fill.style.width="0";status.textContent=`✓ Exported all traits for ${p.name}.`;
+}
+
+async function exportAllLayersZip(){
+ const status=document.getElementById("status"),fill=document.getElementById("fill");
+ if(typeof JSZip==="undefined"){status.textContent="ZIP library could not load. Check your internet connection.";return}
+ const zip=new JSZip(), off=document.getElementById("offscreen");
+ const ctx=off.getContext("2d");
+ const categories=[
+  ["01-background","background",CATS.find(x=>x.key==="background").options],
+  ["02-body","body",CATS.find(x=>x.key==="body").options],
+  ["03-hands","hands",CATS.find(x=>x.key==="hands").options],
+  ["04-ears","ears",CATS.find(x=>x.key==="ears").options],
+  ["05-head","head",CATS.find(x=>x.key==="head").options],
+  ["06-eyes","eyes",CATS.find(x=>x.key==="eyes").options],
+  ["07-accessory","accessory",CATS.find(x=>x.key==="accessory").options]
+ ];
+ const originalState={...state};
+ const originalPalette=activePalette;
+ const totalTraitsPerPal=categories.reduce((n,a)=>n+a[2].length,0);
+ const total=PALETTES.length*totalTraitsPerPal;
+ let done=0;
+
+ for(let pi=0; pi<PALETTES.length; pi++){
+   activePalette=pi;
+   const p=PALETTES[pi];
+   const palFolder=`${String(pi+1).padStart(2,"0")}-${p.id}`;
+   zip.folder(palFolder).file("palette.json", JSON.stringify({id:p.id,name:p.name,colors:p}, null, 2));
+
+   for(const [folder,key,options] of categories){
+     for(const option of options){
+       state[key]=option;
+       ctx.clearRect(0,0,800,800);
+       renderLayerByName(ctx,folder);
+       const blob=await new Promise(resolve=>off.toBlob(resolve,"image/png"));
+       zip.folder(`${palFolder}/${folder}`).file(`${option}.png`,blob);
+       done++;
+       if(done%6===0 || done===total){
+         fill.style.width=(done/total*100)+"%";
+         status.textContent=`Packaging all 16 palettes: [${p.name}] ${key}/${option} (${done}/${total})…`;
+         await new Promise(r=>setTimeout(r,0));
+       }
+     }
+   }
+ }
+
+ activePalette=originalPalette;
+ state={...originalState};
+ renderUI();drawBot(document.getElementById("mainCanvas"));
+ status.textContent="Compressing complete 16-palette ZIP… (takes a few seconds)";
+ const content=await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:5}});
+ const url=URL.createObjectURL(content),a=document.createElement("a");
+ a.href=url;a.download="404bot-all-16-palettes-traits.zip";a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ fill.style.width="0";status.textContent="✓ Exported all trait variants across all 16 color palettes!";
 }
 
 document.getElementById("randomBtn").onclick=randomize;
@@ -440,15 +496,9 @@ document.getElementById("resetBtn").onclick=reset;
 document.getElementById("exportCompositeBtn").onclick=exportComposite;
 document.getElementById("exportTraitsBtn").onclick=exportTraits;
 document.getElementById("exportZipBtn").onclick=exportAllLayersZip;
-// New button for toxic‑waste export
-if(!document.getElementById("exportToxicWasteBtn")){
-   const btn=document.createElement("button");
-   btn.id="exportToxicWasteBtn";
-   btn.className="tool-btn primary";
-   btn.textContent="Export Toxic‑Waste All Traits";
-   btn.onclick=exportToxicWasteAllTraits;
-   document.querySelector(".toolbar").appendChild(btn);
- }
+if(document.getElementById("exportActiveZipBtn")){
+  document.getElementById("exportActiveZipBtn").onclick=exportCurrentPaletteZip;
+}
 renderUI();drawBot(document.getElementById("mainCanvas"));
 </script>
 </body>
