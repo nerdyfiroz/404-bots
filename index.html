@@ -83,6 +83,7 @@ const PALETTES=[
 ];
 
 const CATS=[
+{key:"palette",title:"Palette / Colorway",desc:"16 custom chromatic finishes and armor tints",options:PALETTES.map(p=>p.name)},
 {key:"background",title:"Background",desc:"Radial color backdrop",options:["gradient","grid","rings","stars","dots","void"]},
 {key:"head",title:"Head Shape",desc:"Choose the main character silhouette",options:["round","square","capsule","triangle","alien","tv"]},
 {key:"eyes",title:"Eyes / Face",desc:"Interchangeable expressions and digital traits",options:["404","happy","angry","sleepy","x","heart","spiral"]},
@@ -94,7 +95,7 @@ const CATS=[
 ];
 
 let activePalette=0;
-let state={background:"gradient",head:"round",eyes:"404",ears:"classic",body:"classic",hands:"claws",accessory:"none", "glitch-fx":"none"};
+let state={palette:PALETTES[0].name,background:"gradient",head:"round",eyes:"404",ears:"classic",body:"classic",hands:"claws",accessory:"none","glitch-fx":"none"};
 
 const ink="#0e0e0e";
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath()}
@@ -286,10 +287,50 @@ function applyGlitchFX(c,p,effect){
 }
 
 function renderUI(){
- const pr=document.getElementById("paletteRow");pr.innerHTML="";
- PALETTES.forEach((p,i)=>{let b=document.createElement("button");b.className="palette-btn"+(i===activePalette?" active":"");b.textContent=p.name;b.style.setProperty("--accent",p.accent);b.onclick=()=>{activePalette=i;renderUI();drawBot(document.getElementById("mainCanvas"))};pr.appendChild(b)});
+ const pr=document.getElementById("paletteRow");
+ if(pr){
+  pr.innerHTML="";
+  PALETTES.forEach((p,i)=>{
+    let b=document.createElement("button");
+    b.className="palette-btn"+(i===activePalette?" active":"");
+    b.textContent=p.name;
+    b.style.setProperty("--accent",p.accent);
+    b.onclick=()=>{
+      activePalette=i;
+      state.palette=p.name;
+      renderUI();
+      drawBot(document.getElementById("mainCanvas"));
+    };
+    pr.appendChild(b);
+  });
+ }
  const traits=document.getElementById("traits");traits.innerHTML="";
- CATS.forEach(cat=>{let card=document.createElement("div");card.className="trait-card";card.innerHTML=`<h2>${cat.title}</h2><p>${cat.desc}</p>`;let opts=document.createElement("div");opts.className="trait-options";cat.options.forEach(o=>{let b=document.createElement("button");b.className="trait-btn"+(state[cat.key]===o?" active":"");b.textContent=o;b.onclick=()=>{state[cat.key]=o;renderUI();drawBot(document.getElementById("mainCanvas"))};opts.appendChild(b)});card.appendChild(opts);traits.appendChild(card)});
+ CATS.forEach(cat=>{
+   let card=document.createElement("div");card.className="trait-card";
+   card.innerHTML=`<h2>${cat.title}</h2><p>${cat.desc}</p>`;
+   let opts=document.createElement("div");opts.className="trait-options";
+   cat.options.forEach(o=>{
+     let b=document.createElement("button");
+     const isActive = (cat.key==="palette") ? (PALETTES[activePalette].name===o) : (state[cat.key]===o);
+     b.className="trait-btn"+(isActive?" active":"");
+     b.textContent=o;
+     if(cat.key==="palette"){
+       const pal=PALETTES.find(p=>p.name===o);
+       if(pal) b.style.setProperty("--accent",pal.accent);
+     }
+     b.onclick=()=>{
+       state[cat.key]=o;
+       if(cat.key==="palette"){
+         activePalette=PALETTES.findIndex(p=>p.name===o);
+       }
+       renderUI();
+       drawBot(document.getElementById("mainCanvas"));
+     };
+     opts.appendChild(b);
+   });
+   card.appendChild(opts);
+   traits.appendChild(card);
+ });
  renderLayerCards();
 }
 
@@ -339,8 +380,24 @@ async function exportToxicWasteAllTraits(){
 }
 
 async function exportTraits(){let ids=["01-background","02-body","03-hands","04-ears","05-head","06-eyes","07-accessory"];let fill=document.getElementById("fill"),status=document.getElementById("status");for(let i=0;i<ids.length;i++){status.textContent=`Exporting ${i+1}/${ids.length}…`;fill.style.width=((i+1)/ids.length*100)+"%";exportLayer(ids[i]);await new Promise(r=>setTimeout(r,250))}status.textContent="✓ Active traits exported.";setTimeout(()=>fill.style.width="0",1000)}
-function randomize(){CATS.forEach(cat=>{state[cat.key]=cat.options[Math.floor(Math.random()*cat.options.length)]});activePalette=Math.floor(Math.random()*PALETTES.length);renderUI();drawBot(document.getElementById("mainCanvas"));document.getElementById("status").textContent="🎲 New random 404BOT generated!"}
-function reset(){activePalette=0;state={background:"gradient",head:"round",eyes:"404",ears:"classic",body:"classic",hands:"claws",accessory:"none", "glitch-fx":"none"};renderUI();drawBot(document.getElementById("mainCanvas"))}
+function randomize(){
+  activePalette=Math.floor(Math.random()*PALETTES.length);
+  state.palette=PALETTES[activePalette].name;
+  CATS.forEach(cat=>{
+    if(cat.key!=="palette"){
+      state[cat.key]=cat.options[Math.floor(Math.random()*cat.options.length)];
+    }
+  });
+  renderUI();
+  drawBot(document.getElementById("mainCanvas"));
+  document.getElementById("status").textContent="🎲 New random 404BOT generated!";
+}
+function reset(){
+  activePalette=0;
+  state={palette:PALETTES[0].name,background:"gradient",head:"round",eyes:"404",ears:"classic",body:"classic",hands:"claws",accessory:"none","glitch-fx":"none"};
+  renderUI();
+  drawBot(document.getElementById("mainCanvas"));
+}
 
 async function exportAllLayersZip(){
  const status=document.getElementById("status"),fill=document.getElementById("fill");
