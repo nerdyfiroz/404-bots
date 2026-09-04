@@ -65,6 +65,7 @@ canvas{display:block;width:100%;height:100%}.status{font-size:12px;color:var(--m
 
 <div class="toolbar">
 <button class="tool-btn highlight" id="openCollectionModalBtn">⚡ Generate NFT Collection</button>
+<button class="tool-btn" id="openTop100Btn" style="background:linear-gradient(135deg,#FFD700,#FF8800);color:#0e0e0e;font-weight:800;border:none;box-shadow:0 3px 14px rgba(255,215,0,.4)">⭐ Top 100 NFTs</button>
 <button class="tool-btn primary" id="randomBtn">🎲 Randomize BOT</button>
 <button class="tool-btn" id="exportCompositeBtn">⬇ Export Composite PNG</button>
 <button class="tool-btn" id="exportTraitsBtn">⬇ Export Active Traits</button>
@@ -77,23 +78,31 @@ canvas{display:block;width:100%;height:100%}.status{font-size:12px;color:var(--m
 <div class="modal-overlay" id="collectionModal">
   <div class="modal-card">
     <div class="modal-header">
-      <div class="modal-title">⚡ Generate NFT Collection</div>
+      <div class="modal-title" id="modalTitle">⚡ Generate NFT Collection</div>
       <button class="modal-close" id="closeCollectionModal">&times;</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px" id="modalDesc">
       Generate complete unique 404BOT characters with coherent color palettes, full PNG composite artworks, duplicate-prevention DNA, and OpenSea/ERC-721 metadata JSONs.
     </p>
 
     <div class="form-group">
+      <label class="form-label">Generation Mode</label>
+      <select class="form-select" id="colGenMode" style="border-color:#ffaa00;background:#181824">
+        <option value="standard">Standard Generative Mint</option>
+        <option value="top100">⭐ Top 100 Ultra-Rare & Legendary (Curated Traits, Scores & Rankings)</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="colSizeGroup">
       <label class="form-label">Collection Size (Edition count)</label>
       <input type="number" class="form-input" id="colCount" value="2222" min="1" max="10000" />
       <div class="size-presets">
-        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=50">50</button>
-        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=100">100</button>
-        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=500">500</button>
-        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=1111">1111</button>
-        <button type="button" class="size-btn active" onclick="document.getElementById('colCount').value=2222">2222</button>
-        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=5555">5555</button>
+        <button type="button" class="size-btn" onclick="selectPresetCount(100)">100</button>
+        <button type="button" class="size-btn" onclick="selectPresetCount(500)">500</button>
+        <button type="button" class="size-btn" onclick="selectPresetCount(1111)">1111</button>
+        <button type="button" class="size-btn active" onclick="selectPresetCount(2222)">2222</button>
+        <button type="button" class="size-btn" onclick="selectPresetCount(5555)">5555</button>
+        <button type="button" class="size-btn" style="border-color:#ffd700;color:#ffd700" onclick="setTop100Mode()">⭐ Top 100</button>
       </div>
     </div>
 
@@ -583,11 +592,55 @@ if(document.getElementById("exportActiveZipBtn")){
 
 // Collection Generator Modal Controls
 const colModal = document.getElementById("collectionModal");
-document.getElementById("openCollectionModalBtn").onclick = () => {
+
+function selectPresetCount(val){
+  document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
+  const input = document.getElementById("colCount");
+  input.value = val;
+  const match = Array.from(document.querySelectorAll(".size-btn")).find(b => b.textContent == val);
+  if(match) match.classList.add("active");
+  document.getElementById("colGenMode").value = "standard";
+  document.getElementById("modalTitle").innerHTML = "⚡ Generate NFT Collection";
+  document.getElementById("modalDesc").textContent = "Generate complete unique 404BOT characters with coherent color palettes, full PNG composite artworks, duplicate-prevention DNA, and OpenSea/ERC-721 metadata JSONs.";
+  document.getElementById("startGenBtn").textContent = "🚀 Generate Collection & Download ZIP";
+}
+
+function setTop100Mode(){
+  document.getElementById("colGenMode").value = "top100";
+  document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
+  const topBtn = document.querySelector(".size-btn[onclick*='setTop100Mode']");
+  if(topBtn) topBtn.classList.add("active");
+  document.getElementById("colCount").value = 100;
+  document.getElementById("modalTitle").innerHTML = "⭐ Generate Top 100 Rare NFTs";
+  document.getElementById("modalDesc").textContent = "Generates the top 100 rarest bots with guaranteed special accessories, glitch effects, rarity rankings (#1-#100), and rarity scores!";
+  document.getElementById("startGenBtn").textContent = "⭐ Mint Top 100 Rare NFTs & Download ZIP";
+}
+
+document.getElementById("colGenMode").onchange = (e) => {
+  if(e.target.value === "top100"){
+    setTop100Mode();
+  } else {
+    selectPresetCount(2222);
+  }
+};
+
+document.getElementById("openTop100Btn").onclick = () => {
   colModal.classList.add("active");
+  setTop100Mode();
   const curOpt = document.querySelector("#colPaletteMode option[value='current']");
   if(curOpt) curOpt.textContent = `Selected Palette Only (${PALETTES[activePalette].name})`;
 };
+
+document.getElementById("openCollectionModalBtn").onclick = () => {
+  colModal.classList.add("active");
+  document.getElementById("colGenMode").value = "standard";
+  document.getElementById("modalTitle").innerHTML = "⚡ Generate NFT Collection";
+  document.getElementById("modalDesc").textContent = "Generate complete unique 404BOT characters with coherent color palettes, full PNG composite artworks, duplicate-prevention DNA, and OpenSea/ERC-721 metadata JSONs.";
+  document.getElementById("startGenBtn").textContent = "🚀 Generate Collection & Download ZIP";
+  const curOpt = document.querySelector("#colPaletteMode option[value='current']");
+  if(curOpt) curOpt.textContent = `Selected Palette Only (${PALETTES[activePalette].name})`;
+};
+
 document.getElementById("closeCollectionModal").onclick = () => {
   colModal.classList.remove("active");
 };
@@ -595,20 +648,13 @@ colModal.onclick = (e) => {
   if(e.target === colModal) colModal.classList.remove("active");
 };
 
-// Preset count buttons
-document.querySelectorAll(".size-btn").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("colCount").value = btn.textContent;
-  };
-});
-
 async function generateNftCollection(){
   const countInput = document.getElementById("colCount");
-  const count = Math.max(1, Math.min(10000, parseInt(countInput.value) || 2222));
+  const genMode = document.getElementById("colGenMode").value;
+  const isTop100 = (genMode === "top100");
+  const count = isTop100 ? 100 : Math.max(1, Math.min(10000, parseInt(countInput.value) || 2222));
   const paletteMode = document.getElementById("colPaletteMode").value;
-  const colName = document.getElementById("colName").value.trim() || "404BOT";
+  const colName = document.getElementById("colName").value.trim() || (isTop100 ? "404BOT-Top100" : "404BOT");
   
   const startBtn = document.getElementById("startGenBtn");
   const previewBox = document.getElementById("genPreviewBox");
@@ -627,7 +673,7 @@ async function generateNftCollection(){
 
   startBtn.disabled = true;
   previewBox.style.display = "flex";
-  statusText.textContent = "Starting NFT minting engine…";
+  statusText.textContent = isTop100 ? "Curating Top 100 Elite Rarity combinations…" : "Starting NFT minting engine…";
 
   const zip = new JSZip();
   const imgFolder = zip.folder("images");
@@ -644,57 +690,136 @@ async function generateNftCollection(){
   const savedState = {...state};
   const savedPalette = activePalette;
 
-  for(let edition = 1; edition <= count; edition++){
-    let chosenPaletteIdx;
-    if(paletteMode === "all"){
-      chosenPaletteIdx = (edition - 1) % PALETTES.length;
-    } else {
-      chosenPaletteIdx = activePalette;
-    }
-    const pal = PALETTES[chosenPaletteIdx];
-    activePalette = chosenPaletteIdx;
+  // Curated trait pools and weights for Top 100
+  const topAccessories = ["crown","halo","wings","glitch","error-404","error-500","bug","cloud-error","warning","server-down","timeout","captcha","connection-lost"];
+  const topGlitch = ["color-shift","pixelate","static"];
+  const topEyes = ["404","spiral","heart","angry","x"];
+  const topHands = ["laser","tentacles","peace","claws"];
+  const topHead = ["tv","alien","capsule","triangle","round","square"];
+  const topBody = ["ufo","spider","spring","hover","classic"];
+  const topEars = ["antenna","headphones","horn","rabbit","cat"];
 
-    // Generate unique trait combination with DNA tracking
-    let traits = {};
-    let dna = "";
-    let attempts = 0;
-    do {
-      traits = {};
-      dna = `${pal.id}-`;
-      for(const cat of traitCategories){
-        const opt = cat.options[Math.floor(Math.random() * cat.options.length)];
-        traits[cat.key] = opt;
-        dna += `${cat.key}:${opt};`;
+  const weights = {
+    accessory: {crown:40,halo:38,wings:35,glitch:34,"error-404":32,"error-500":30,bug:28,warning:28,"server-down":26,"cloud-error":26,timeout:25,captcha:25,"connection-lost":25},
+    "glitch-fx": {"color-shift":30,pixelate:28,static:25},
+    eyes: {"404":25,spiral:22,heart:20,angry:18,x:18,happy:12,sleepy:10},
+    hands: {laser:25,tentacles:24,peace:20,claws:18,thumbs:12,wave:10,fists:10},
+    head: {tv:25,alien:22,capsule:18,triangle:18,square:14,round:12},
+    body: {ufo:25,spider:24,spring:20,hover:18,classic:14,tiny:12},
+    ears: {antenna:22,headphones:20,horn:18,rabbit:18,cat:14,classic:10}
+  };
+
+  let candidates = [];
+
+  if(isTop100){
+    // Pre-generate 100 unique high-rarity candidates
+    for(let i = 0; i < 100; i++){
+      let chosenPaletteIdx;
+      if(paletteMode === "all"){
+        chosenPaletteIdx = i % PALETTES.length;
+      } else {
+        chosenPaletteIdx = activePalette;
       }
-      attempts++;
-    } while(existingDnas.has(dna) && attempts < 60);
-    existingDnas.add(dna);
+      const pal = PALETTES[chosenPaletteIdx];
+      let traits = {};
+      let dna = "";
+      let attempts = 0;
+      do {
+        traits = {
+          background: CATS.find(x=>x.key==="background").options[Math.floor(Math.random()*CATS.find(x=>x.key==="background").options.length)],
+          head: topHead[Math.floor(Math.random()*topHead.length)],
+          eyes: topEyes[Math.floor(Math.random()*topEyes.length)],
+          ears: topEars[Math.floor(Math.random()*topEars.length)],
+          body: topBody[Math.floor(Math.random()*topBody.length)],
+          hands: topHands[Math.floor(Math.random()*topHands.length)],
+          accessory: topAccessories[Math.floor(Math.random()*topAccessories.length)],
+          "glitch-fx": topGlitch[Math.floor(Math.random()*topGlitch.length)]
+        };
+        dna = `${pal.id}-${traits.head}-${traits.eyes}-${traits.ears}-${traits.body}-${traits.hands}-${traits.accessory}-${traits["glitch-fx"]}`;
+        attempts++;
+      } while(existingDnas.has(dna) && attempts < 60);
+      existingDnas.add(dna);
+
+      let score = 55;
+      for(const k in traits){
+        if(weights[k] && weights[k][traits[k]]) score += weights[k][traits[k]];
+      }
+      score = Math.round((score + (pal.name.length % 7) * 1.5 + Math.random() * 2) * 10) / 10;
+      candidates.push({ pal, paletteIdx: chosenPaletteIdx, traits, dna, score });
+    }
+
+    // Sort by rarity score descending: Rank #1 is highest score!
+    candidates.sort((a,b) => b.score - a.score);
+  }
+
+  const leaderboard = [];
+  const totalEditions = isTop100 ? 100 : count;
+
+  for(let edition = 1; edition <= totalEditions; edition++){
+    let pal, traits, dna, rank, score;
+
+    if(isTop100){
+      const cand = candidates[edition - 1];
+      pal = cand.pal;
+      activePalette = cand.paletteIdx;
+      traits = cand.traits;
+      dna = cand.dna;
+      rank = edition;
+      score = cand.score;
+      leaderboard.push({ rank, score, name: `${colName} #${rank}`, palette: pal.name, traits });
+    } else {
+      let chosenPaletteIdx;
+      if(paletteMode === "all"){
+        chosenPaletteIdx = (edition - 1) % PALETTES.length;
+      } else {
+        chosenPaletteIdx = activePalette;
+      }
+      pal = PALETTES[chosenPaletteIdx];
+      activePalette = chosenPaletteIdx;
+
+      let attempts = 0;
+      do {
+        traits = {};
+        dna = `${pal.id}-`;
+        for(const cat of traitCategories){
+          const opt = cat.options[Math.floor(Math.random() * cat.options.length)];
+          traits[cat.key] = opt;
+          dna += `${cat.key}:${opt};`;
+        }
+        attempts++;
+      } while(existingDnas.has(dna) && attempts < 60);
+      existingDnas.add(dna);
+    }
 
     // Apply state and render
     Object.assign(state, traits);
     state.palette = pal.name;
 
-    // Draw full bot with current color palette
     ctx.clearRect(0,0,800,800);
     drawBot(off);
 
     // Live preview update
     miniCtx.clearRect(0,0,200,200);
     miniCtx.drawImage(off, 0, 0, 200, 200);
-    liveName.textContent = `${colName} #${edition} of ${count}`;
-    livePal.textContent = `Palette: ${pal.name}`;
-    liveTraits.textContent = `Head: ${traits.head || ""} · Eyes: ${traits.eyes || ""} · Body: ${traits.body || ""}`;
-    genFill.style.width = `${(edition / count * 100)}%`;
-    statusText.textContent = `Minting #${edition}/${count} [${pal.name}]…`;
+    liveName.textContent = isTop100 ? `${colName} #${edition} [Rank #${edition}]` : `${colName} #${edition} of ${count}`;
+    livePal.textContent = `Palette: ${pal.name}` + (isTop100 ? ` · Rarity Score: ${score}` : "");
+    liveTraits.textContent = `Acc: ${traits.accessory || "none"} · FX: ${traits["glitch-fx"] || "none"} · Eyes: ${traits.eyes}`;
+    genFill.style.width = `${(edition / totalEditions * 100)}%`;
+    statusText.textContent = isTop100 ? `Minting Top 100: Rank #${edition} [${pal.name}]…` : `Minting #${edition}/${count} [${pal.name}]…`;
 
     // Store image blob
     const imgBlob = await new Promise(res => off.toBlob(res, "image/png"));
     imgFolder.file(`${edition}.png`, imgBlob);
 
     // Standard OpenSea/ERC-721 Metadata
-    const attributes = [
-      { trait_type: "Palette", value: pal.name }
-    ];
+    const attributes = [];
+    if(isTop100){
+      attributes.push({ trait_type: "Tier", value: "Top 100 Legendary" });
+      attributes.push({ trait_type: "Rarity Rank", value: `#${rank}` });
+      attributes.push({ display_type: "number", trait_type: "Rarity Score", value: score });
+    }
+    attributes.push({ trait_type: "Palette", value: pal.name });
+
     for(const cat of traitCategories){
       attributes.push({
         trait_type: cat.title,
@@ -705,34 +830,45 @@ async function generateNftCollection(){
     paletteCounts[pal.name] = (paletteCounts[pal.name] || 0) + 1;
 
     const itemMetadata = {
-      name: `${colName} #${edition}`,
-      description: `A unique algorithmically generated ${colName} collectible rendered in the ${pal.name} colorway.`,
+      name: isTop100 ? `${colName} #${edition} [Rank #${edition}]` : `${colName} #${edition}`,
+      description: isTop100
+        ? `Rank #${edition} of the elite Top 100 ${colName} NFT Collection. Legendary curated tier with Rarity Score ${score}.`
+        : `A unique algorithmically generated ${colName} collectible rendered in the ${pal.name} colorway.`,
       image: `${edition}.png`,
       edition: edition,
       dna: dna,
       date: Date.now(),
       attributes: attributes,
-      compiler: "404BOT Trait Engine"
+      compiler: isTop100 ? "404BOT Top 100 Rarity Engine" : "404BOT Trait Engine"
     };
 
     jsonFolder.file(`${edition}.json`, JSON.stringify(itemMetadata, null, 2));
     allMetadata.push(itemMetadata);
 
-    const yieldInterval = count > 1000 ? 10 : (count > 250 ? 5 : 2);
-    if(edition % yieldInterval === 0 || edition === count){
+    const yieldInterval = totalEditions > 1000 ? 10 : (totalEditions > 250 ? 5 : 2);
+    if(edition % yieldInterval === 0 || edition === totalEditions){
       await new Promise(r => setTimeout(r, 0));
     }
   }
 
   // Add overall _metadata.json and summary
   zip.file("_metadata.json", JSON.stringify(allMetadata, null, 2));
-  zip.file("collection_summary.json", JSON.stringify({
-    collectionName: colName,
-    totalCount: count,
-    generatedAt: new Date().toISOString(),
-    palettes: paletteCounts,
-    traits: traitCounts
-  }, null, 2));
+  if(isTop100){
+    zip.file("top_100_leaderboard.json", JSON.stringify({
+      collectionName: colName,
+      tier: "Top 100 Legendary",
+      generatedAt: new Date().toISOString(),
+      leaderboard: leaderboard
+    }, null, 2));
+  } else {
+    zip.file("collection_summary.json", JSON.stringify({
+      collectionName: colName,
+      totalCount: count,
+      generatedAt: new Date().toISOString(),
+      palettes: paletteCounts,
+      traits: traitCounts
+    }, null, 2));
+  }
 
   statusText.textContent = "Compressing collection ZIP (images + metadata)…";
   const zipContent = await zip.generateAsync({
@@ -744,11 +880,11 @@ async function generateNftCollection(){
   const url = URL.createObjectURL(zipContent);
   const dl = document.createElement("a");
   dl.href = url;
-  dl.download = `${colName.toLowerCase()}-collection-${count}.zip`;
+  dl.download = isTop100 ? `${colName.toLowerCase()}-top-100-collection.zip` : `${colName.toLowerCase()}-collection-${count}.zip`;
   dl.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-  statusText.textContent = `✓ Successfully generated & downloaded ${count} NFTs!`;
+  statusText.textContent = isTop100 ? `✓ Top 100 Rare Collection generated & downloaded!` : `✓ Successfully generated & downloaded ${count} NFTs!`;
   startBtn.disabled = false;
 
   // Restore state
