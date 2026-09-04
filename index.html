@@ -85,7 +85,7 @@ const PALETTES=[
 const CATS=[
 {key:"background",title:"Background",desc:"Radial color backdrop",options:["gradient","grid","rings","stars","dots","void"]},
 {key:"head",title:"Head Shape",desc:"Choose the main character silhouette",options:["round","square","capsule","triangle","alien","tv"]},
-{key:"eyes",title:"Eyes / Face",desc:"Interchangeable expressions and digital traits",options:["404","happy","angry","sleepy","x","heart","cyclops","spiral"]},
+{key:"eyes",title:"Eyes / Face",desc:"Interchangeable expressions and digital traits",options:["404","happy","angry","sleepy","x","heart","spiral"]},
 {key:"ears",title:"Ears / Attachments",desc:"Side modules and silhouette traits",options:["classic","cat","antenna","horn","headphones","rabbit"]},
 {key:"body",title:"Body Shape",desc:"Six different body archetypes",options:["classic","tiny","hover","ufo","spider","spring"]},
 {key:"hands",title:"Hands / Arms",desc:"Six expressive arm and hand traits",options:["claws","fists","peace","wave","thumbs","tentacles","laser"]},
@@ -184,13 +184,12 @@ function drawEars(c,p,t){
 }
 
 function drawEyes(c,p,t){
- if(t==="404"){rr(c,250,225,300,125,60);c.fillStyle=accentGrad(c,p,250,225,550,350);c.fill();stroke(c,6)}
+ if(t==="404"){rr(c,250,225,300,125,60);c.fillStyle=accentGrad(c,p,250,225,550,350);c.fill();stroke(c,6);c.font="bold 72px 'Space Grotesk', sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillStyle="white";c.fillText("404",400,292)}
  if(t==="happy"){for(let x of [335,465]){c.beginPath();c.arc(x,280,38,0,Math.PI);c.strokeStyle=ink;c.lineWidth=12;c.stroke()}}
  if(t==="angry"){for(let x of [330,470]){c.strokeStyle=ink;c.lineWidth=13;c.beginPath();c.moveTo(x-42,255);c.lineTo(x+32,290);c.stroke();circle(c,x,300,22,p.visor,4)}}
  if(t==="sleepy"){for(let x of [330,470]){c.beginPath();c.ellipse(x,285,50,22,0,0,Math.PI*2);c.fillStyle=p.visor;c.fill();stroke(c,5);c.fillStyle=p.armor;c.fillRect(x-55,245,110,30)}}
  if(t==="x"){for(let x of [330,470]){c.strokeStyle=p.visor;c.lineWidth=22;c.beginPath();c.moveTo(x-35,250);c.lineTo(x+35,320);c.moveTo(x+35,250);c.lineTo(x-35,320);c.stroke();c.strokeStyle=ink;c.lineWidth=6;c.stroke()}}
  if(t==="heart"){for(let x of [330,470])heart(c,x,285,42,p.visor)}
- if(t==="cyclops"){circle(c,400,285,82,p.visor,7);circle(c,400,285,32,ink,4);circle(c,388,270,10,"white",0)}
  if(t==="spiral"){for(let x of [330,470]){c.strokeStyle=p.visor;c.lineWidth=10;c.beginPath();for(let a=0;a<Math.PI*5;a+=.12){let r=3+a*3,xp=x+Math.cos(a)*r,yp=285+Math.sin(a)*r;if(a===0)c.moveTo(xp,yp);else c.lineTo(xp,yp)}c.stroke();stroke(c,2)}}
 }
 function heart(c,x,y,s,fill){c.save();c.translate(x,y);c.beginPath();c.moveTo(0,s*.75);c.bezierCurveTo(-s*1.5,-s*.1,-s*.65,-s*1.25,0,-s*.55);c.bezierCurveTo(s*.65,-s*1.25,s*1.5,-s*.1,0,s*.75);c.closePath();c.fillStyle=fill;c.fill();stroke(c,4);c.restore()}
