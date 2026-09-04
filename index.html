@@ -27,6 +27,34 @@ canvas{display:block;width:100%;height:100%}.status{font-size:12px;color:var(--m
 .layer-info{padding:10px}.layer-name{font-size:12px;font-weight:700}.layer-desc{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
 .layer-actions{display:flex;gap:6px;margin-top:9px}.small-btn{padding:6px 8px;flex:1}
 @media(max-width:900px){body{padding:18px}.layout{grid-template-columns:1fr}.preview-panel{position:relative;top:auto}}
+
+/* Modal & Generator Styling */
+.tool-btn.highlight{background:linear-gradient(135deg,#ff6b35,#ff2d55);border:none;color:#fff;font-weight:700;box-shadow:0 3px 14px rgba(255,107,53,.35)}
+.tool-btn.highlight:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.modal-overlay{position:fixed;inset:0;background:rgba(8,8,12,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:.2s ease}
+.modal-overlay.active{opacity:1;pointer-events:auto}
+.modal-card{background:var(--card);border:1px solid #363644;border-radius:20px;width:95%;max-width:560px;padding:26px;box-shadow:0 24px 64px rgba(0,0,0,.6);position:relative}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.modal-close{background:transparent;border:none;color:var(--muted);font-size:26px;cursor:pointer;line-height:1}
+.modal-close:hover{color:#fff}
+.form-group{margin-bottom:15px}
+.form-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#d1d1db}
+.form-input,.form-select{width:100%;padding:10px 14px;background:#131318;border:1px solid var(--line);border-radius:10px;color:#fff;font:inherit;font-size:13px}
+.form-input:focus,.form-select:focus{outline:none;border-color:var(--accent)}
+.size-presets{display:flex;gap:8px;margin-top:7px}
+.size-btn{flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:#181820;color:#aaa;font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:.15s}
+.size-btn:hover,.size-btn.active{border-color:var(--accent);color:#fff;background:rgba(255,107,53,.15)}
+.gen-preview-box{margin-top:16px;background:#0d0d12;border:1px solid var(--line);border-radius:14px;padding:14px;display:none;align-items:center;gap:16px}
+.gen-preview-canvas{width:90px;height:90px;border-radius:10px;background:#000;border:1px solid #2a2a35;flex-shrink:0}
+.gen-preview-details{flex:1;overflow:hidden}
+.gen-preview-name{font-weight:700;font-size:14px;color:#fff;margin-bottom:3px}
+.gen-preview-meta{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.gen-progress{height:6px;background:#202028;border-radius:99px;overflow:hidden;margin-top:10px}
+.gen-fill{height:100%;width:0;background:linear-gradient(90deg,#ff6b35,#ff2d55);transition:.1s}
+.btn-generate{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#ff6b35,#ff2d55);color:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer;margin-top:16px;box-shadow:0 4px 18px rgba(255,107,53,.35);transition:.2s}
+.btn-generate:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-generate:disabled{opacity:.5;cursor:not-allowed;transform:none}
 </style>
 </head>
 <body>
@@ -36,12 +64,64 @@ canvas{display:block;width:100%;height:100%}.status{font-size:12px;color:var(--m
 <div class="palette-row" id="paletteRow"></div>
 
 <div class="toolbar">
+<button class="tool-btn highlight" id="openCollectionModalBtn">⚡ Generate NFT Collection</button>
 <button class="tool-btn primary" id="randomBtn">🎲 Randomize BOT</button>
 <button class="tool-btn" id="exportCompositeBtn">⬇ Export Composite PNG</button>
-<button class="tool-btn" id="exportTraitsBtn">⬇ Export Active Traits (7 PNGs)</button>
+<button class="tool-btn" id="exportTraitsBtn">⬇ Export Active Traits</button>
 <button class="tool-btn" id="exportActiveZipBtn">📦 Export Active Palette ZIP</button>
-<button class="tool-btn primary" id="exportZipBtn">🌈 Export ALL 16 Palettes ZIP</button>
+<button class="tool-btn" id="exportZipBtn">🌈 Export ALL 16 Palettes ZIP</button>
 <button class="tool-btn" id="resetBtn">↺ Reset Default</button>
+</div>
+
+<!-- Collection Generator Modal -->
+<div class="modal-overlay" id="collectionModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">⚡ Generate NFT Collection</div>
+      <button class="modal-close" id="closeCollectionModal">&times;</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+      Generate complete unique 404BOT characters with coherent color palettes, full PNG composite artworks, duplicate-prevention DNA, and OpenSea/ERC-721 metadata JSONs.
+    </p>
+
+    <div class="form-group">
+      <label class="form-label">Collection Size (Edition count)</label>
+      <input type="number" class="form-input" id="colCount" value="50" min="1" max="1000" />
+      <div class="size-presets">
+        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=10">10</button>
+        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=25">25</button>
+        <button type="button" class="size-btn active" onclick="document.getElementById('colCount').value=50">50</button>
+        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=100">100</button>
+        <button type="button" class="size-btn" onclick="document.getElementById('colCount').value=250">250</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Color Palette Strategy</label>
+      <select class="form-select" id="colPaletteMode">
+        <option value="all">🎨 Distribute Across All 16 Palettes (Balanced & Cohesive)</option>
+        <option value="current">Current Selected Palette Only</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Collection Name / Token Prefix</label>
+      <input type="text" class="form-input" id="colName" value="404BOT" />
+    </div>
+
+    <div class="gen-preview-box" id="genPreviewBox">
+      <canvas class="gen-preview-canvas" id="genMiniCanvas" width="200" height="200"></canvas>
+      <div class="gen-preview-details">
+        <div class="gen-preview-name" id="genLiveName">Ready to generate…</div>
+        <div class="gen-preview-meta" id="genLivePalette">Palette: -</div>
+        <div class="gen-preview-meta" id="genLiveTraits">Traits: -</div>
+        <div class="gen-progress"><div class="gen-fill" id="genFill"></div></div>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="startGenBtn">🚀 Generate Collection & Download ZIP</button>
+    <div id="genStatusText" style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px"></div>
+  </div>
 </div>
 
 <div class="layout">
@@ -499,6 +579,184 @@ document.getElementById("exportZipBtn").onclick=exportAllLayersZip;
 if(document.getElementById("exportActiveZipBtn")){
   document.getElementById("exportActiveZipBtn").onclick=exportCurrentPaletteZip;
 }
+
+// Collection Generator Modal Controls
+const colModal = document.getElementById("collectionModal");
+document.getElementById("openCollectionModalBtn").onclick = () => {
+  colModal.classList.add("active");
+  const curOpt = document.querySelector("#colPaletteMode option[value='current']");
+  if(curOpt) curOpt.textContent = `Selected Palette Only (${PALETTES[activePalette].name})`;
+};
+document.getElementById("closeCollectionModal").onclick = () => {
+  colModal.classList.remove("active");
+};
+colModal.onclick = (e) => {
+  if(e.target === colModal) colModal.classList.remove("active");
+};
+
+// Preset count buttons
+document.querySelectorAll(".size-btn").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("colCount").value = btn.textContent;
+  };
+});
+
+async function generateNftCollection(){
+  const countInput = document.getElementById("colCount");
+  const count = Math.max(1, Math.min(1000, parseInt(countInput.value) || 50));
+  const paletteMode = document.getElementById("colPaletteMode").value;
+  const colName = document.getElementById("colName").value.trim() || "404BOT";
+  
+  const startBtn = document.getElementById("startGenBtn");
+  const previewBox = document.getElementById("genPreviewBox");
+  const miniCanvas = document.getElementById("genMiniCanvas");
+  const miniCtx = miniCanvas.getContext("2d");
+  const liveName = document.getElementById("genLiveName");
+  const livePal = document.getElementById("genLivePalette");
+  const liveTraits = document.getElementById("genLiveTraits");
+  const genFill = document.getElementById("genFill");
+  const statusText = document.getElementById("genStatusText");
+
+  if(typeof JSZip === "undefined"){
+    statusText.textContent = "ZIP library is loading or failed. Check connection.";
+    return;
+  }
+
+  startBtn.disabled = true;
+  previewBox.style.display = "flex";
+  statusText.textContent = "Starting NFT minting engine…";
+
+  const zip = new JSZip();
+  const imgFolder = zip.folder("images");
+  const jsonFolder = zip.folder("json");
+  const off = document.getElementById("offscreen");
+  const ctx = off.getContext("2d");
+
+  const traitCategories = CATS.filter(c => c.key !== "palette");
+  const existingDnas = new Set();
+  const allMetadata = [];
+  const paletteCounts = {};
+  const traitCounts = {};
+
+  const savedState = {...state};
+  const savedPalette = activePalette;
+
+  for(let edition = 1; edition <= count; edition++){
+    let chosenPaletteIdx;
+    if(paletteMode === "all"){
+      chosenPaletteIdx = (edition - 1) % PALETTES.length;
+    } else {
+      chosenPaletteIdx = activePalette;
+    }
+    const pal = PALETTES[chosenPaletteIdx];
+    activePalette = chosenPaletteIdx;
+
+    // Generate unique trait combination with DNA tracking
+    let traits = {};
+    let dna = "";
+    let attempts = 0;
+    do {
+      traits = {};
+      dna = `${pal.id}-`;
+      for(const cat of traitCategories){
+        const opt = cat.options[Math.floor(Math.random() * cat.options.length)];
+        traits[cat.key] = opt;
+        dna += `${cat.key}:${opt};`;
+      }
+      attempts++;
+    } while(existingDnas.has(dna) && attempts < 60);
+    existingDnas.add(dna);
+
+    // Apply state and render
+    Object.assign(state, traits);
+    state.palette = pal.name;
+
+    // Draw full bot with current color palette
+    ctx.clearRect(0,0,800,800);
+    drawBot(off);
+
+    // Live preview update
+    miniCtx.clearRect(0,0,200,200);
+    miniCtx.drawImage(off, 0, 0, 200, 200);
+    liveName.textContent = `${colName} #${edition} of ${count}`;
+    livePal.textContent = `Palette: ${pal.name}`;
+    liveTraits.textContent = `Head: ${traits.head || ""} · Eyes: ${traits.eyes || ""} · Body: ${traits.body || ""}`;
+    genFill.style.width = `${(edition / count * 100)}%`;
+    statusText.textContent = `Minting #${edition}/${count} [${pal.name}]…`;
+
+    // Store image blob
+    const imgBlob = await new Promise(res => off.toBlob(res, "image/png"));
+    imgFolder.file(`${edition}.png`, imgBlob);
+
+    // Standard OpenSea/ERC-721 Metadata
+    const attributes = [
+      { trait_type: "Palette", value: pal.name }
+    ];
+    for(const cat of traitCategories){
+      attributes.push({
+        trait_type: cat.title,
+        value: traits[cat.key]
+      });
+      traitCounts[`${cat.title}: ${traits[cat.key]}`] = (traitCounts[`${cat.title}: ${traits[cat.key]}`] || 0) + 1;
+    }
+    paletteCounts[pal.name] = (paletteCounts[pal.name] || 0) + 1;
+
+    const itemMetadata = {
+      name: `${colName} #${edition}`,
+      description: `A unique algorithmically generated ${colName} collectible rendered in the ${pal.name} colorway.`,
+      image: `${edition}.png`,
+      edition: edition,
+      dna: dna,
+      date: Date.now(),
+      attributes: attributes,
+      compiler: "404BOT Trait Engine"
+    };
+
+    jsonFolder.file(`${edition}.json`, JSON.stringify(itemMetadata, null, 2));
+    allMetadata.push(itemMetadata);
+
+    if(edition % 2 === 0 || edition === count){
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  // Add overall _metadata.json and summary
+  zip.file("_metadata.json", JSON.stringify(allMetadata, null, 2));
+  zip.file("collection_summary.json", JSON.stringify({
+    collectionName: colName,
+    totalCount: count,
+    generatedAt: new Date().toISOString(),
+    palettes: paletteCounts,
+    traits: traitCounts
+  }, null, 2));
+
+  statusText.textContent = "Compressing collection ZIP (images + metadata)…";
+  const zipContent = await zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 5 }
+  });
+
+  const url = URL.createObjectURL(zipContent);
+  const dl = document.createElement("a");
+  dl.href = url;
+  dl.download = `${colName.toLowerCase()}-collection-${count}.zip`;
+  dl.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  statusText.textContent = `✓ Successfully generated & downloaded ${count} NFTs!`;
+  startBtn.disabled = false;
+
+  // Restore state
+  activePalette = savedPalette;
+  Object.assign(state, savedState);
+  renderUI();
+  drawBot(document.getElementById("mainCanvas"));
+}
+
+document.getElementById("startGenBtn").onclick = generateNftCollection;
 renderUI();drawBot(document.getElementById("mainCanvas"));
 </script>
 </body>
